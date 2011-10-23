@@ -1,47 +1,69 @@
 require 'open-uri'
 
+class EventPage
+  attr_accessor :name
+
+  def initialize(name, url)
+    @name, @url = name, url
+  end
+
+  def results_for_team(team)
+    `curl #{@url} | grep #{team}`.split(/\n/)
+  end
+
+end
+
+
+class ResultSite
+
+  ResultBlock = Struct.new(:event, :results)
+
+  EVENT_LIST_PATH = 'evtindex.htm'
+
+  def initialize( url )
+    @url  = parse_url(url)
+    @page = get_page
+    @event_pages = get_event_pages( @page )
+  end
+
+  def parse_url( url )
+    url += '/' unless url[/\/$/]
+    url
+  end
+
+  def results_for_team( team )
+    [].tap do |results|
+      @event_pages.each do |page| 
+        results << ResultBlock.new( page.name, page.results_for_team(team) )
+      end
+    end
+  end
+
+  def get_page
+    event_list_url = @url + EVENT_LIST_PATH
+    Nokogiri::HTML(open(event_list_url))
+  end
+
+  def get_event_pages(page)
+    links = page.xpath '//a'
+    event_links = links.collect {|l| l if l.text[/^#/]}
+    event_links.compact!
+    event_links.map { |l| EventPage.new(l.text, @url + l.attributes['href'].value) }
+  end
+
+
+end
+
 class  MeetSummary < Sinatra::Base
 
   get '/' do
-    "URL: <form action='parse' method='post'><input type='text' name='url' /><input type='submit' /></form>"
+    haml :index
   end
 
   post '/parse' do
-    page = get_page( params[:url] )
-    @team = params[:team]
-    event_pages = get_event_links( page )
-    @blocks = scrape_event_pages( event_pages )
+    url, team = params[:url], params[:team]
+    @blocks = ResultSite.new( url ).results_for_team( team )
     haml :results
-  end
-
-
-  helpers do
-      
-    def scrape_results(url, team)
-      `curl #{url} | grep #{team}`.split(/\n/)
-    end
-
-    def get_page(url)
-      url += '/' unless url[/\/$/]
-      event_list_path = 'evtindex.htm'
-      event_list_url = url + event_list_path
-      Nokogiri::HTML(open(event_list_url))
-    end
-
-    def scrape_event_pages(pages)
-      pages.each do |page|
-        event_url = url + page[:path]
-        @blocks << {:event => page[:event], :results => scrape_results(event_url, team)}
-      end
-    end
-
-    def get_event_links(page)
-      links = page.xpath '//a'
-      event_links = links.collect {|l| l if l.text[/^#/]}
-      event_links.compact!
-      event_links.map { |l| { :event => l.text, :path => l.attributes['href'].value } }
-    end
-
   end
 
 end
