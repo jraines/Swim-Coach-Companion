@@ -6,30 +6,42 @@ class  MeetSummary < Sinatra::Base
     "URL: <form action='parse' method='post'><input type='text' name='url' /><input type='submit' /></form>"
   end
 
-  get '/test' do
-    " fhfhf \n fjfjfjf \n fa     aa \n"
+  post '/parse' do
+    page = get_page( params[:url] )
+    @team = params[:team]
+    event_pages = get_event_links( page )
+    @blocks = scrape_event_pages( event_pages )
+    haml :results
   end
 
-  post '/parse' do
-    url = params[:url]
-    debugger
-    url += '/' unless url[/\/$/]
-    event_list_path = 'evtindex.htm'
-    event_list_url = url + event_list_path
-    doc = Nokogiri::HTML(open(event_list_url))
-    links = doc.xpath '//a'
-    event_links = links.collect {|l| l if l.text[/^#/]}
-    event_links.compact!
-    el = event_links.map do |l| 
-      { :event => l.text, :path => l.attributes['href'].value }
+
+  helpers do
+      
+    def scrape_results(url, team)
+      `curl #{url} | grep #{team}`.split(/\n/)
     end
-    @blocks = []
-    el.each do |el|
-      event_url = url + el[:path]
-      @blocks << {:event => el[:event], :results => `curl #{event_url} | grep CSSC-CA`.split(/\n/)}
+
+    def get_page(url)
+      url += '/' unless url[/\/$/]
+      event_list_path = 'evtindex.htm'
+      event_list_url = url + event_list_path
+      Nokogiri::HTML(open(event_list_url))
     end
-    @blocks
-    haml :results
+
+    def scrape_event_pages(pages)
+      pages.each do |page|
+        event_url = url + page[:path]
+        @blocks << {:event => page[:event], :results => scrape_results(event_url, team)}
+      end
+    end
+
+    def get_event_links(page)
+      links = page.xpath '//a'
+      event_links = links.collect {|l| l if l.text[/^#/]}
+      event_links.compact!
+      event_links.map { |l| { :event => l.text, :path => l.attributes['href'].value } }
+    end
+
   end
 
 end
