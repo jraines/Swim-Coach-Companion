@@ -1,5 +1,13 @@
 - for block in @blocks
   -unless block.results.size == 0
     %h2= block.event
-    - for result in block.results
-      %p= result.swimmer
+    %table
+      - for result in block.results
+        %tr
+          %td= result.place
+          %td= result.swimmer[0]
+          %td= result.swimmer[1]
+          %td= result.age
+          %td= result.team
+          %td= result.seed
+          %td= result.time

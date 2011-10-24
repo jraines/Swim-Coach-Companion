@@ -9,7 +9,7 @@ class ResultTextParser
     lines.each do |line|
       arr = line.strip.split /\s+/
       place = arr.shift
-      swimmer = [].tap {|sw| sw << arr.shift until arr.first[/\d/] }.join
+      swimmer = [].tap {|sw| sw << arr.shift until arr.first[/\d/] }.join.split ','
       age, team, seed, time = *arr[0..3]
       results << Result.new( place, swimmer, age, team, seed, time )
     end
@@ -34,9 +34,7 @@ end
 
 
 class ResultSite
-
   ResultBlock = Struct.new(:event, :results)
-
   EVENT_LIST_PATH = 'evtindex.htm'
 
   def initialize( url )
@@ -69,12 +67,9 @@ class ResultSite
     event_links.compact!
     event_links.map { |l| EventPage.new(l.text, @url + l.attributes['href'].value) }
   end
-
-
 end
 
 class  MeetSummary < Sinatra::Base
-
   get '/' do
     haml :index
   end
@@ -84,5 +79,4 @@ class  MeetSummary < Sinatra::Base
     @blocks = ResultSite.new( url ).results_for_team( team )
     haml :results
   end
-
 end
