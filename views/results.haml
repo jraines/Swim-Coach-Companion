@@ -1,5 +1,5 @@
 - for block in @blocks
   -unless block.results.size == 0
     %h2= block.event
-    - for line in block.results
-      %p=  line
+    - for result in block.results
+      %p= result.swimmer

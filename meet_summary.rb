@@ -1,5 +1,23 @@
 require 'open-uri'
 
+Result = Struct.new :place, :swimmer, :age, :team, :seed, :time
+
+class ResultTextParser
+  def self.parse(lines)
+    results = []
+    lines = lines.split /\n/
+    lines.each do |line|
+      arr = line.strip.split /\s+/
+      place = arr.shift
+      swimmer = [].tap {|sw| sw << arr.shift until arr.first[/\d/] }.join
+      age, team, seed, time = *arr[0..3]
+      results << Result.new( place, swimmer, age, team, seed, time )
+    end
+    results
+  end
+end
+
+
 class EventPage
   attr_accessor :name
 
@@ -8,7 +26,8 @@ class EventPage
   end
 
   def results_for_team(team)
-    `curl #{@url} | grep #{team}`.split(/\n/)
+    results_text = `curl -s #{@url} | grep #{team} | grep -v Hosted `
+    results = ResultTextParser.parse( results_text )
   end
 
 end
@@ -34,7 +53,7 @@ class ResultSite
   def results_for_team( team )
     [].tap do |results|
       @event_pages.each do |page| 
-        results << ResultBlock.new( page.name, page.results_for_team(team) )
+        results << ResultBlock.new( page.name, page.results_for_team(team) ) #ResultBlock.results will be an array of Results
       end
     end
   end
